@@ -29,6 +29,8 @@ import xml.dom.minidom
 
 # -- General utilities --
 
+sys.dont_write_bytecode = True # don't bother with .pyc-files
+
 _FIRST_TIMESTAMP = None
 
 def timestamp():
