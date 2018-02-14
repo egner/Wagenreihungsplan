@@ -129,6 +129,9 @@ def read_dataset(datasetdir):
 
 def compile_dataset(datasetdir):
     "Read dataset from XML, extracting entries."
+    if datasetdir is None:
+        raise ValueError('Need a path to a dataset.')
+
     datasetpath = os.path.abspath(datasetdir)
     logging.info('Processing dataset %r, at %s.', datasetpath, timestamp())
 
@@ -136,8 +139,6 @@ def compile_dataset(datasetdir):
     ds['$type'] = _TYPE
     ds['$dataset'] = datasetpath
     ds['entries'] = sorted(list(read_dataset(datasetpath)))
-
-    logging.debug('Dataset: %r.', ds)
     return ds
 
 _TYPE = 'Wagenreihungsplan' # The tag to identify our datasets.
@@ -145,17 +146,20 @@ _TYPE = 'Wagenreihungsplan' # The tag to identify our datasets.
 def load_dataset(datasetdir, picklefile):
     "Load dataset from picklefile, or recreate it from datasetdir."
     picklepath = os.path.abspath(picklefile)
-    datasetpath = os.path.abspath(datasetdir)
+    datasetpath = None
+    if datasetdir is not None:
+        datasetpath = os.path.abspath(datasetdir)
 
     ds = None
     if os.path.isfile(picklepath):
-        logging.info('Loading compiled dataset %r at %s.', picklepath, timestamp())
+        logging.debug('Loading compiled dataset %r at %s.', picklepath, timestamp())
         with bz2.BZ2File(picklepath, 'rb') as inp:
             ds = cPickle.load(inp)
 
     is_valid = ( isinstance(ds, dict) and
                  ds.has_key('$type') and ds['$type'] == _TYPE and
-                 ds.has_key('$dataset') and ds['$dataset'] == datasetpath )
+                 ds.has_key('$dataset') and
+                 (datasetpath is None or ds['$dataset'] == datasetpath) )
     if not is_valid:
 
         ds = compile_dataset(datasetpath)
@@ -169,7 +173,7 @@ def load_dataset(datasetdir, picklefile):
         with bz2.BZ2File(picklepath, 'wb') as out:
             cPickle.dump(ds, out)
 
-    logging.info('Dataset loaded at %s.', timestamp())
+    logging.debug('Dataset loaded at %s.', timestamp())
     return ds
 
 
@@ -267,7 +271,6 @@ def list_section(trainNumber, waggon, datasetdir, picklefile):
     return True
 
 def main():
-    dataset = 'Wagenreihungsplan_RawData_201712112'
     pickle = 'Wagenreihungsplan.pickle.bz2'
 
     parser = argparse.ArgumentParser()
@@ -275,18 +278,22 @@ def main():
                         help='list trains and exit')
     parser.add_argument('-s', '--section', nargs=2, metavar=('TRAIN', 'WAGGON'),
                         help='list platform sections and exit')
-    parser.add_argument('-d', '--dataset', default=dataset,
-                        help='directory of dataset to compile, default %r' % (dataset,))
+    parser.add_argument('-d', '--dataset', default=None,
+                        help='directory of dataset to compile, no default')
     parser.add_argument('-p', '--pickle', default=pickle,
                         help='filename of compiled dataset, default %r' % (pickle,))
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='progress indication output')
+    parser.add_argument('--debug', action='store_true',
+                        help='increase output level')
 
     args = parser.parse_args()
 
     level = logging.INFO
-    if args.quiet is True:
+    if args.quiet:
         level = logging.ERROR
+    if args.debug:
+        level = logging.DEBUG
 
     logging.basicConfig(level=level, stream=sys.stderr)
 

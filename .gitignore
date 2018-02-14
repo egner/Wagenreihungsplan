@@ -3,3 +3,6 @@
 
 # Python
 *.pyc
+
+# generated files
+Wagenreihungsplan.pickle.bz2
